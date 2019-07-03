@@ -5,16 +5,16 @@
 #define REFLOW 3
 #define COOLING 4
 
-#define MAX_ON_TIME 10
-#define MAX_OFF_TIME 200
+#define MAX_ON_TIME 20
+#define MAX_OFF_TIME 70
 
-#define SYSTEMOFFSET 10
+#define SYSTEMOFFSET 5
 
 #define SSR 13
 #define THERMOCOUPLE A0
 #define CONTROLBUTTON 3
 
-int stageTemperatures[5] = {30, 150, 180, 205, 30};// Target Temperature of Each stage in Degrees C
+int stageTemperatures[5] = {30, 155, 185, 210, 35};// Target Temperature of Each stage in Degrees C
 int stageDuration[5] = {1, 60, 30, 45, 1};//duration of each stage in seconds
 
 int currentStage = READY;
@@ -27,6 +27,7 @@ void setup() {
   // initialize serial communications at 9600 bps:
   Serial.begin(9600);
   pinMode(SSR, OUTPUT);
+  pinMode(CONTROLBUTTON, INPUT_PULLUP);
   digitalWrite(SSR, LOW);
 }
 float sysTemperature;
@@ -36,6 +37,8 @@ void loop() {
   
   sysTemperature=getMeanTemperature();
   Serial.println(sysTemperature);
+  //Serial.print("Current stage is: ");
+  //Serial.println(currentStage);
   if (currentStage == COOLING)
   {
     //shutdown the SSR
@@ -45,16 +48,17 @@ void loop() {
 
   if (currentStage == READY)
   {
+    
     //shutdown the SSR
     digitalWrite(SSR, LOW);
     //wait here for next signal
     //currentStage=currentStage%TOTALSTAGES;
     startReflowSignal = digitalRead(CONTROLBUTTON);//Check if user has pressed the button
-    if (CONTROLBUTTON == 0)
+    if (startReflowSignal == 0)
     {
       delay(500);
       startReflowSignal = digitalRead(CONTROLBUTTON);
-      if (CONTROLBUTTON == 0) // User Held the button for 300ms, equivalent to a long press
+      if (startReflowSignal == 0) // User Held the button for 300ms, equivalent to a long press
       {
         currentStage = PREHEAT;
       }
@@ -66,6 +70,8 @@ void loop() {
   else
   {
     targetTemperature = stageTemperatures[currentStage];
+    //Serial.print("Target Temperature is: ");
+    //Serial.println(targetTemperature);
     achieveIn=stageDuration[currentStage];
     temperatureReached = achieveTemperature(targetTemperature,achieveIn);
     if (temperatureReached)
@@ -114,6 +120,7 @@ boolean achieveTemperature(float targetTemperature, int lStageDuration)
     digitalWrite(SSR, LOW);
     delay(offtime);//Calculated below
     systemTemperature = getMeanTemperature();
+    Serial.println(systemTemperature);
     timeElapsed=millis()-stageStartTime;
     currentSlope=(systemTemperature-stageStartTemperature)* 1000 / timeElapsed; //Time elapsed is in milliseconds
     
