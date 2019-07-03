@@ -15,7 +15,7 @@
 #define CONTROLBUTTON 3
 
 int stageTemperatures[5] = {30, 155, 185, 210, 35};// Target Temperature of Each stage in Degrees C
-int stageDuration[5] = {1, 60, 30, 45, 1};//duration of each stage in seconds
+int stageDuration[5] = {1, 90, 90, 35, 1};//duration of each stage in seconds
 
 int currentStage = READY;
 float systemTemperature,targetTemperature;
