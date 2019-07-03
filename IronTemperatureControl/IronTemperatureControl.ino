@@ -10,7 +10,7 @@
 
 #define SYSTEMOFFSET 5
 
-#define SSR 13
+#define SSR 2
 #define THERMOCOUPLE A0
 #define CONTROLBUTTON 3
 
