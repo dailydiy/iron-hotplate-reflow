@@ -1,3 +1,6 @@
+#include <Wire.h> 
+#include <LiquidCrystal_I2C.h>
+
 #define TOTALSTAGES 5
 #define READY 0
 #define PREHEAT 1
@@ -14,14 +17,19 @@
 #define THERMOCOUPLE A0
 #define CONTROLBUTTON 3
 
-int stageTemperatures[5] = {30, 155, 185, 210, 35};// Target Temperature of Each stage in Degrees C
-int stageDuration[5] = {1, 90, 90, 35, 1};//duration of each stage in seconds
-
+int stageTemperatures[TOTALSTAGES] = { 
+  30, 155, 185, 210, 35};// Target Temperature of Each stage in Degrees C
+int stageDuration[TOTALSTAGES] = {
+  1, 90, 90, 35, 1};//duration of each stage in seconds
+String stageNames[TOTALSTAGES]={
+  "Ready","Preheat","Soaking","Reflow","Cooling"};
 int currentStage = READY;
 float systemTemperature,targetTemperature;
 boolean temperatureReached;
 unsigned long int achieveIn;
 int startReflowSignal;
+
+LiquidCrystal_I2C lcd(0x27, 16, 2);
 
 void setup() {
   // initialize serial communications at 9600 bps:
@@ -29,12 +37,18 @@ void setup() {
   pinMode(SSR, OUTPUT);
   pinMode(CONTROLBUTTON, INPUT_PULLUP);
   digitalWrite(SSR, LOW);
+  lcd.begin();
+
+  // Turn on the blacklight and print a message.
+  lcd.backlight();
+  lcd.setCursor(0,0);
+  lcd.print("Iron Reflow");  
 }
 float sysTemperature;
 
 void loop() {
 
-  
+
   sysTemperature=getMeanTemperature();
   Serial.println(sysTemperature);
   //Serial.print("Current stage is: ");
@@ -48,7 +62,7 @@ void loop() {
 
   if (currentStage == READY)
   {
-    
+
     //shutdown the SSR
     digitalWrite(SSR, LOW);
     //wait here for next signal
@@ -73,7 +87,7 @@ void loop() {
     //Serial.print("Target Temperature is: ");
     //Serial.println(targetTemperature);
     achieveIn=stageDuration[currentStage];
-    temperatureReached = achieveTemperature(targetTemperature,achieveIn);
+    temperatureReached = achieveTemperature(currentStage);
     if (temperatureReached)
     {
       currentStage = currentStage + 1;
@@ -99,22 +113,25 @@ float getMeanTemperature()
 
 }
 unsigned long int stageStartTime=millis();
-boolean achieveTemperature(float targetTemperature, int lStageDuration)
+boolean achieveTemperature(int lstage)
 {
-  
+
   systemTemperature = getMeanTemperature();
   float stageSlope,currentSlope;
   float stageStartTemperature=systemTemperature;//The tempearture we started the stage with.
   int ontime = MAX_ON_TIME;
   int offtime = MAX_OFF_TIME;
   unsigned long int timeElapsed;
+  int targetTemperature = stageTemperatures[lstage];
+
+  int lStageDuration=stageDuration[lstage];
   // do this until the target temperature is greater than the system temperature+offset
   stageStartTime=millis();// the time the stage started
   stageSlope=(targetTemperature-stageStartTemperature)/lStageDuration;// Required Slope of line for this stage in Degrees centrigrade/second
   // The system Offset allows some headroom while temperature is climbing, and reduces overshoot. 
   while (targetTemperature > systemTemperature + SYSTEMOFFSET) 
   {
-    
+
     digitalWrite(SSR, HIGH); //Turn on the SSR
     delay(ontime);//Calculated below
     digitalWrite(SSR, LOW);
@@ -123,7 +140,7 @@ boolean achieveTemperature(float targetTemperature, int lStageDuration)
     Serial.println(systemTemperature);
     timeElapsed=millis()-stageStartTime;
     currentSlope=(systemTemperature-stageStartTemperature)* 1000 / timeElapsed; //Time elapsed is in milliseconds
-    
+
     if(currentSlope>stageSlope)// slow down temperature gain
     {
       ontime=ontime-1;
@@ -154,11 +171,25 @@ boolean achieveTemperature(float targetTemperature, int lStageDuration)
     {
       offtime=MAX_OFF_TIME;
     }
-    
-    
+
+    setLCDInformation(lstage,systemTemperature);
+
+
   }
 
-  
+
   return true;// Temperature Achieved
 
 }
+void setLCDInformation(int lstage, float lsystemTemperature)
+{
+  lcd.clear();
+  lcd.setCursor(0,0);
+  lcd.print(stageNames[lstage]);
+  lcd.setCursor(0,1);
+  String  temperatureState=int(lsystemTemperature)+ " /  "  + stageTemperatures[lstage];
+  lcd.print(temperatureState);
+
+}
+
+
