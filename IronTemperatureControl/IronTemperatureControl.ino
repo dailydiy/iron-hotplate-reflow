@@ -8,21 +8,22 @@
 #define REFLOW 3
 #define COOLING 4
 
-#define MAX_ON_TIME 20
-#define MAX_OFF_TIME 70
+#define MAX_ON_TIME 70
+#define MAX_OFF_TIME 50
 
 #define SYSTEMOFFSET 5
 
-#define SSR 2U
+#define SSR 2
 #define THERMOCOUPLE A0
 #define CONTROLBUTTON 3
+#define BUZZER 4
 
-int stageTemperatures[TOTALSTAGES] = { 
-  30, 155, 185, 210, 35};// Target Temperature of Each stage in Degrees C
-int stageDuration[TOTALSTAGES] = {
-  1, 90, 90, 35, 1};//duration of each stage in seconds
-String stageNames[TOTALSTAGES]={
-  "Ready","Preheating","Soaking","Reflowing","Cooling"};
+#define LCD_REFRESH_RATE 1000
+
+
+int stageTemperatures[TOTALSTAGES] = { 30, 155, 185, 195, 75};// Target Temperature of Each stage in Degrees C
+int stageDuration[TOTALSTAGES] = {1, 60, 60, 10, 1};//duration of each stage in seconds
+String stageNames[TOTALSTAGES]={"Ready","Preheating","Soaking","Reflowing","Cooling"};
 int currentStage = READY;
 float systemTemperature,targetTemperature;
 boolean temperatureReached;
@@ -35,8 +36,10 @@ void setup() {
   // initialize //Serial communications at 9600 bps:
   //Serial.begin(9600);
   pinMode(SSR, OUTPUT);
+  pinMode(BUZZER, OUTPUT);
   pinMode(CONTROLBUTTON, INPUT_PULLUP);
   digitalWrite(SSR, LOW);
+  digitalWrite(BUZZER, LOW);
   lcd.begin();
 
   // Turn on the blacklight and print a message.
@@ -53,9 +56,7 @@ void loop() {
 
 
   sysTemperature=getMeanTemperature();
-  //Serial.println(sysTemperature);
-  ////Serial.print("Current stage is: ");
-  ////Serial.println(currentStage);
+  
   
  
   if (currentStage == COOLING)
@@ -73,7 +74,7 @@ void loop() {
     
   }
 
-  if (currentStage == READY)
+  else if (currentStage == READY)
   {
 
     //shutdown the SSR    
@@ -91,6 +92,7 @@ void loop() {
         currentStage = PREHEAT;
         lcd.clear();
         displayStageName(currentStage);
+        beepBuzzer()
       }
       
 
@@ -108,8 +110,13 @@ void loop() {
     if (temperatureReached)
     {
       currentStage = currentStage + 1;
+      if(currentStage==TOTALSTAGES)
+      {
+        currentStage=0;
+      }
       lcd.clear();
       displayStageName(currentStage);
+      beepBuzzer();
    
     }
 
@@ -210,16 +217,29 @@ void displayStageName(int lstage)
  
 
 }
-
+unsigned long int lastRefreshTime=millis();
 void displayStageTemperature(int lstage, float lsystemTemperature)
 {
-  
-  
-  lcd.setCursor(0,1); 
-  lcd.print(int(lsystemTemperature));
-  lcd.print("/");
-  lcd.print(stageTemperatures[lstage]);
+  byte i;
+  if(millis()-lastRefreshTime>LCD_REFRESH_RATE)
+  {
+    lcd.setCursor(0,1);
+    for(i=0;i<7;i++)
+     {
+       lcd.print(" ");
+     } 
+    lcd.setCursor(0,1);
+    lcd.print(int(lsystemTemperature));
+    lcd.print("/");
+    lcd.print(stageTemperatures[lstage]);
+    lastRefreshTime=millis();
+  }
 
 }
-
+void beepBuzzer()
+{
+  digitalWrite(BUZZER, HIGH);
+  delay(50);
+  digitalWrite(BUZZER, LOW);
+}
 
